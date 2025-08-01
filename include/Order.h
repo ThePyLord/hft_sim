@@ -27,10 +27,11 @@ class Order {
    private:
     Side side;
     Type order_type;
-    double price;
+    std::optional<double> price;
     uint32_t order_size;
-    int oid;
-    uint64_t time_of_order;
+    uint32_t oid;
+    // uint64_t time_of_order;
+    std::chrono::time_point<std::chrono::steady_clock> timestamp;
 
    public:
     Order() = delete;
@@ -41,9 +42,12 @@ class Order {
     static Order createMarketOrder(Side side, uint32_t order_size);
 
     Side getSide() const;
-    double getPrice() const;
+
+    const uint32_t getId() const;
+    std::optional<double> getPrice() const;
     Type getType() const;
     uint32_t getSize() const;
+    std::chrono::steady_clock::time_point getTimestamp() const;
 
     void setSize(uint32_t size);
 

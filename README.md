@@ -7,5 +7,6 @@ The simulator allows users to test various trading strategies, analyze market da
 
 - Simulated market environment
 - Order book management
+  - Order cancellation
 - Trade execution simulation
 

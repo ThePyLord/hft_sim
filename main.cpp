@@ -6,6 +6,7 @@
 #include <iostream>
 #include <ranges>
 #include "OrderBook.h"
+#include "util/Logger.h"
 
 extern int matches;
 
@@ -26,7 +27,9 @@ void signal_handler(int signum) {
     if (signum == SIGINT) {
         // Handle the Ctrl+C interrupt
         // For example, clean up resources, save data, and exit gracefully
-        std::cout << "\nCtrl+C detected! Exiting gracefully..." << std::endl;
+        // Logger::getInstance().info("Ctrl+C detected! Exiting gracefully...");
+        // Logger::getInstance().info("Found " + std::to_string(matches) + " matches.");
+        std::cout << "Ctrl+C detected! Exiting gracefully..." << std::endl;
         std::cout << "Found " << matches << " matches." << std::endl;
         exit(signum);  // Terminate the program with the signal code
     }
@@ -42,9 +45,19 @@ void addMarketOrders(OrderBook& ob,size_t num_orders) {
 }
 
 int main(int argc, char const *argv[]) {
+    Logger& logger = Logger::getInstance();
+    logger.setLogFile("hft_sim.log");
+    logger.setLogLevel(LogLevel::INFO);
+    logger.enableConsole(false);
+    logger.enableFile(true);
+    logger.info("Simulation started");
+    // Seed the random number generator
     srand(time(nullptr));
     OrderBook lob;  // Create limit order book
-    
+
+    // Create a dedicated thread to manage logging
+    // std::thread logger_thread(&Logger::run, &logger);
+    // logger_thread.detach();  // Detach the thread to run independently
 
     // View orders (Expectation is they should be sorted, per std::map implementation)
     auto bids = lob.getBids();
@@ -60,7 +73,7 @@ int main(int argc, char const *argv[]) {
             randval<uint32_t>(100, 110)); // Order size
         lob.add_order(order);
         if (lob.getBids().size() > 2 and lob.getAsks().size() > 2) {
-            puts("Matching orders...");
+            // puts("Matching orders...");
             lob.match_orders();
         }
     }
