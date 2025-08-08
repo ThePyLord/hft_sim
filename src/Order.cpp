@@ -45,10 +45,7 @@ std::chrono::steady_clock::time_point Order::getTimestamp() const {
 void Order::setSize(uint32_t size) {
     if (size >= 0) {
         this->order_size = size;
-    } 
-    // else {
-    //     printf("Invalid size %d\n", size);
-    // }
+    }
 }
 
 /// @brief Creates an order with the given parameters
