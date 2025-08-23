@@ -27,6 +27,7 @@ set(NET_SOURCES
     src/net/UdpReliable.cpp
     src/net/Protocol.cpp
     src/net/Crc32c.cpp
+    src/net/ReorderingBuffer.cpp
 )
 add_library(hsnet STATIC ${NET_SOURCES})
 target_include_directories(hsnet PUBLIC ${CMAKE_SOURCE_DIR}/include)
@@ -83,30 +84,36 @@ set(TEST_SOURCES
         tests/test_cancel_order.cpp
         tests/test_full_orders.cpp
         tests/test_lockfree_queue.cpp
+        tests/test_crc32c.cpp
+        tests/test_reordering_buffer.cpp
 )
 
 # Function to add a Google Test executable (commented out for now)
-#function(add_gtest_test TEST_NAME TEST_SOURCE)
-#    add_executable(${TEST_NAME} ${TEST_SOURCE} src/OrderBook.cpp src/Order.cpp util/Logger.cpp)
-#    # set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEST_OUTPUT_DIR})
-#    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/util)
-#    target_link_libraries(${TEST_NAME} PRIVATE gtest gtest_main)
-#    add_test(NAME ${TEST_NAME} COMMAND ${TEST_OUTPUT_DIR}/${TEST_NAME})
-#    message("Writing test executable: ${TEST_NAME} with source: ${TEST_SOURCE} to ${TEST_OUTPUT_DIR}")
-#endfunction()
-
-#add_gtest_test(test_full_orders tests/test_full_orders.cpp)
-#add_gtest_test(test_cancel_order tests/test_cancel_order.cpp)
-
-
-foreach(TEST_SRC ${TEST_SOURCES})
-    get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)
-    add_executable(${TEST_NAME} ${TEST_SRC} src/OrderBook.cpp src/Order.cpp util/Logger.cpp)
-    set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEST_OUTPUT_DIR})
-    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/util)
-    target_link_libraries(${TEST_NAME} PRIVATE gtest gtest_main)
+function(add_gtest_test TEST_NAME TEST_SOURCE)
+    add_executable(${TEST_NAME} ${TEST_SOURCE} src/OrderBook.cpp src/Order.cpp util/Logger.cpp)
+     set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEST_OUTPUT_DIR})
+    target_include_directories(${TEST_NAME} PRIVATE
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_SOURCE_DIR}/util)
+    target_link_libraries(${TEST_NAME} PRIVATE gtest gtest_main hsnet)
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_OUTPUT_DIR}/${TEST_NAME})
-endforeach()
+    message("Writing test executable: ${TEST_NAME} with source: ${TEST_SOURCE} to ${TEST_OUTPUT_DIR}")
+endfunction()
+
+add_gtest_test(test_full_orders tests/test_full_orders.cpp)
+add_gtest_test(test_cancel_order tests/test_cancel_order.cpp)
+add_gtest_test(test_crc32c tests/test_crc32c.cpp)
+add_gtest_test(test_reordering_buffer tests/test_reordering_buffer.cpp)
+
+
+#foreach(TEST_SRC ${TEST_SOURCES})
+#    get_filename_component(TEST_NAME ${TEST_SRC} NAME_WE)
+#    add_executable(${TEST_NAME} ${TEST_SRC} src/OrderBook.cpp src/Order.cpp util/Logger.cpp)
+#    set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEST_OUTPUT_DIR})
+#    target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/util)
+#    target_link_libraries(${TEST_NAME} PRIVATE gtest gtest_main hsnet)
+#    add_test(NAME ${TEST_NAME} COMMAND ${TEST_OUTPUT_DIR}/${TEST_NAME})
+#endforeach()
 
 # Dedicated UDP transport test
 add_executable(test_udp_transport tests/test_udp_transport.cpp)

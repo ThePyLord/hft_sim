@@ -46,8 +46,8 @@ public:
 class ITransport {
 public:
     virtual ~ITransport() = default;
-    virtual std::unique_ptr<IPublication> createPublication(std::string_view endpoint, StreamId stream) = 0;
-    virtual std::unique_ptr<ISubscription> createSubscription(std::string_view endpoint, StreamId stream) = 0;
+    virtual std::unique_ptr<IPublication> create_publication(std::string_view endpoint, StreamId stream) = 0;
+    virtual std::unique_ptr<ISubscription> create_subscription(std::string_view endpoint, StreamId stream) = 0;
 };
 
 } // namespace hsnet 

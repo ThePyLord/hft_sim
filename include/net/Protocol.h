@@ -13,6 +13,8 @@ enum class FrameType : uint8_t {
 	RESET=5 
 };
 
+// Protocol header
+// Using 64-bit fields to prevent sequence number wraparound and to allow for future expansion
 struct alignas(8) Header {
     uint64_t magic_version_type_flags;
     uint64_t sequence_number;
@@ -25,7 +27,25 @@ struct alignas(8) Header {
     uint32_t crc32c_payload;
 };
 
-void writeHeader(uint8_t* dst, const Header& h) noexcept;
-bool parseHeader(const uint8_t* src, Header& out) noexcept;
+void write_header(uint8_t* dst, const Header& h) noexcept;
+bool parse_header(const uint8_t* src, Header& out) noexcept;
+
+// define htonll and ntohll if not available
+#if !defined(htonll) && !defined(ntohll)
+	inline uint64_t htonll(uint64_t value) noexcept {
+	    if constexpr (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) {
+	        return __builtin_bswap64(value);
+	    } else {
+	        return value;
+	    }
+	}
+	inline uint64_t ntohll(uint64_t value) noexcept {
+	    if constexpr (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) {
+	        return __builtin_bswap64(value);
+	    } else {
+	        return value;
+	    }
+	}
+#endif
 
 } // namespace hsnet::proto 
