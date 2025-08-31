@@ -10,6 +10,7 @@ Logger& Logger::getInstance() {
 
 Logger::Logger() {
     num_logged = 0;
+    file_enabled_ = false;
     if (file_enabled_) {
         file_stream_.open(log_file_, std::ios::app);
     }
@@ -82,10 +83,10 @@ void Logger::logImpl(LogLevel level, const std::string& msg) {
     
     // buffer[num_logged] = log_line;
     // num_logged = (num_logged + 1) % buffer.size();
-    if (console_enabled_ && num_logged == buffer.size() - 1) {
+    if (console_enabled_) {
         std::cout << log_line;
     }
-    if (file_enabled_ && file_stream_.is_open() && num_logged == buffer.size() - 1) {
+    if (file_enabled_ && file_stream_.is_open()) {
         file_stream_ << log_line;
         file_stream_.flush();
     }
