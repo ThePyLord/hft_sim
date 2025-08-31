@@ -1,6 +1,6 @@
-#include "net/ReorderingBuffer.h"
 #include <algorithm>
 #include <cassert>
+#include "net/ReorderingBuffer.h"
 
 namespace hsnet {
 
@@ -9,7 +9,7 @@ ReorderingBuffer::ReorderingBuffer(size_t max_size)
     buffer_.resize(max_size);
 }
 
-bool ReorderingBuffer::add(uint64_t sequence, std::vector<uint8_t> data) {
+bool ReorderingBuffer::add(uint64_t sequence, std::vector<uint8_t> data, uint32_t stream_id) {
     // If sequence is too old, ignore it
     if (sequence < next_seq_) {
         return false;
@@ -34,12 +34,12 @@ bool ReorderingBuffer::add(uint64_t sequence, std::vector<uint8_t> data) {
     if (!buffer_[pos].valid) {
         count_++;
     }
-    buffer_[pos] = Packet(sequence, std::move(data));
+    buffer_[pos] = Packet(sequence, std::move(data), stream_id);
 
     return true;
 }
 
-std::optional<std::vector<uint8_t>> ReorderingBuffer::get_next() {
+std::optional<std::pair<std::vector<uint8_t>, uint32_t>> ReorderingBuffer::get_next() {
     if (!has_ready()) {
         return std::nullopt;
     }
@@ -49,19 +49,21 @@ std::optional<std::vector<uint8_t>> ReorderingBuffer::get_next() {
     // Ensure it is valid and matches the expected sequence number
     assert(packet.valid && packet.sequence == next_seq_);
     
-    // Extract data
+    // Extract data and stream_id
     auto data = std::move(packet.data);
+    auto stream_id = packet.stream_id;
     
     // Mark slot as invalid
     packet.valid = false;
     packet.sequence = 0;
+    packet.stream_id = 0;
     
     // Advance sequence number and head pointer
     next_seq_++;
     advance_head();
     count_--;
     
-    return data;
+    return std::make_pair(std::move(data), stream_id);
 }
 
 bool ReorderingBuffer::has_ready() const {

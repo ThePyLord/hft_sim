@@ -30,7 +30,7 @@ set(NET_SOURCES
     src/net/ReorderingBuffer.cpp
 )
 add_library(hsnet STATIC ${NET_SOURCES})
-target_include_directories(hsnet PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(hsnet PUBLIC ${CMAKE_SOURCE_DIR}/include/net)
 
 # Add the source files for the main executable
 set(SOURCES
@@ -86,6 +86,7 @@ set(TEST_SOURCES
         tests/test_lockfree_queue.cpp
         tests/test_crc32c.cpp
         tests/test_reordering_buffer.cpp
+        tests/test_udp_transport.cpp
 )
 
 # Function to add a Google Test executable (commented out for now)
@@ -123,6 +124,10 @@ target_link_libraries(test_udp_transport PRIVATE gtest gtest_main hsnet)
 add_test(NAME UdpTransportTest COMMAND ${TEST_OUTPUT_DIR}/test_udp_transport)
 
 # Non-test demo
-add_executable(udp_demo examples/udp_demo.cpp)
-target_include_directories(udp_demo PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(udp_demo PRIVATE hsnet)
+add_executable(feed_pub examples/feed_publisher_demo.cpp)
+target_include_directories(feed_pub PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(feed_pub PRIVATE hsnet)
+
+add_executable(feed_sub examples/feed_subscriber_demo.cpp)
+target_include_directories(feed_sub PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(feed_sub PRIVATE hsnet)

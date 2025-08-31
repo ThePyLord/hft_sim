@@ -13,10 +13,10 @@ public:
     explicit ReorderingBuffer(size_t max_size = 1024);
     
     // Add a packet with sequence number, returns true if it was added
-    bool add(uint64_t sequence, std::vector<uint8_t> data);
+    bool add(uint64_t sequence, std::vector<uint8_t> data, uint32_t stream_id = 0);
     
     // Get next in-sequence packet, returns empty if none available
-    std::optional<std::vector<uint8_t>> get_next();
+    std::optional<std::pair<std::vector<uint8_t>, uint32_t>> get_next();
     
     // Check if we have any packets ready for delivery
     bool has_ready() const;
@@ -35,10 +35,11 @@ private:
     struct Packet {
         uint64_t sequence;
         std::vector<uint8_t> data;
+        uint32_t stream_id;
         bool valid;
         
-        Packet() : sequence(0), valid(false) {}
-        Packet(uint64_t seq, std::vector<uint8_t> d) : sequence(seq), data(std::move(d)), valid(true) {}
+        Packet() : sequence(0), stream_id(0), valid(false) {}
+        Packet(uint64_t seq, std::vector<uint8_t> d, uint32_t sid) : sequence(seq), data(std::move(d)), stream_id(sid), valid(true) {}
     };
     
     std::vector<Packet> buffer_;
