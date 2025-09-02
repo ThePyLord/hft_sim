@@ -19,8 +19,8 @@ TEST(ReorderingBuffer, InSequenceDelivery) {
     std::vector<uint8_t> data1 = {1, 2, 3};
     std::vector<uint8_t> data2 = {4, 5, 6};
     
-    EXPECT_TRUE(buffer.add(0, data1));
-    EXPECT_TRUE(buffer.add(1, data2));
+    EXPECT_TRUE(buffer.add(0, data1, 0));
+    EXPECT_TRUE(buffer.add(1, data2, 1));
     
     EXPECT_EQ(buffer.size(), 2);
     EXPECT_TRUE(buffer.has_ready());
@@ -28,13 +28,15 @@ TEST(ReorderingBuffer, InSequenceDelivery) {
     // Get first packet
     auto result1 = buffer.get_next();
     EXPECT_TRUE(result1.has_value());
-    EXPECT_EQ(*result1, data1);
+    auto d1 = *result1;
+    EXPECT_EQ(d1.first, data1);
     EXPECT_EQ(buffer.next_expected(), 1);
     // Get second packet
     auto result2 = buffer.get_next();
 
     EXPECT_TRUE(result2.has_value());
-    EXPECT_EQ(*result2, data2);
+    d1 = *result2;
+    EXPECT_EQ(d1.first, data2);
     EXPECT_EQ(buffer.next_expected(), 2);
     
     EXPECT_EQ(buffer.size(), 0);
@@ -59,15 +61,18 @@ TEST(ReorderingBuffer, OutOfOrderDelivery) {
     // Should deliver in sequence: 0, 1, 2
     auto result1 = buffer.get_next();
     EXPECT_TRUE(result1.has_value());
-    EXPECT_EQ(*result1, data1);
+    auto p = *result1;
+    EXPECT_EQ(p.first, data1);
     
     auto result2 = buffer.get_next();
     EXPECT_TRUE(result2.has_value());
-    EXPECT_EQ(*result2, data2);
+    p = *result2;
+    EXPECT_EQ(p.first, data2);
     
     auto result3 = buffer.get_next();
     EXPECT_TRUE(result3.has_value());
-    EXPECT_EQ(*result3, data3);
+    p = *result3;
+    EXPECT_EQ(p.first, data3);
     
     EXPECT_EQ(buffer.size(), 0);
     EXPECT_FALSE(buffer.has_ready());

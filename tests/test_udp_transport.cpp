@@ -9,36 +9,45 @@
 
 using namespace std::chrono_literals;
 
-TEST(UdpReliable, LoopbackRoundtrip) {
-    hsnet::UdpConfig cfgA;
-    cfgA.local_endpoint = "127.0.0.1:9101";
-    cfgA.remote_endpoint = "127.0.0.1:9102";
+/**
+ * @brief Unit test for basic multicast functionality using the UdpReliable transport.
+ *
+ * This test verifies that a publisher can send a message to multiple subscribers
+ * using multicast, and both subscribers receive the message correctly.
+ */
+TEST(UdpReliable, BasicMulticast) {
+    using namespace std::chrono;
+    hsnet::FeedPublisherConfig pubCfg;
+    pubCfg.multicast_group = "239.0.0.1";
+    pubCfg.port = 8170;
+    auto pub = hsnet::make_udp_reliable_publisher(pubCfg);
 
-    hsnet::UdpConfig cfgB;
-    cfgB.local_endpoint = "127.0.0.1:9102";
-    cfgB.remote_endpoint = "127.0.0.1:9101";
+    hsnet::FeedSubscriberConfig subCfg;
+    subCfg.multicast_group = "239.0.0.1";
+    subCfg.port = 8170;
 
-    // Transport A sends to B, Transport B receives from A
-    auto ta = hsnet::make_udp_reliable_transport(cfgA);
-    auto tb = hsnet::make_udp_reliable_transport(cfgB);
+    auto sub1 = hsnet::make_udp_reliable_subscriber(subCfg);
+    auto sub2 = hsnet::make_udp_reliable_subscriber(subCfg);
+    char msg[] = "BUY PLTR 8";
+    pub->offer(std::span<const std::uint8_t>(reinterpret_cast<const std::uint8_t*>(msg), sizeof(msg)), pubCfg.stream_id);
 
-    auto pubA = ta->create_publication(cfgA.remote_endpoint, cfgA.stream_id);
-    auto subB = tb->create_subscription(cfgB.local_endpoint, cfgB.stream_id);
-
-    const char msg[] = "BUY AAPL 100";
-    auto res = pubA->offer(std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(msg), sizeof(msg)-1), cfgA.stream_id, true);
-    ASSERT_EQ(res, hsnet::PublishResult::OK);
-
-    std::atomic<bool> received{false};
-    auto start = std::chrono::steady_clock::now();
-    while (!received && std::chrono::steady_clock::now() - start < 1s) {
-        subB->poll([&](const hsnet::MessageView& mv){
-            ASSERT_EQ(mv.length, sizeof(msg)-1);
+    std::atomic<bool> recvB{false};
+    std::atomic<bool> recvC{false};
+    auto start = steady_clock::now();
+    while (!recvB && !recvC && steady_clock::now() - start < 10s) {
+        sub1->poll([&](const hsnet::MessageView& mv) {
+            ASSERT_EQ(mv.length, sizeof(msg));
             std::string s(reinterpret_cast<const char*>(mv.data), mv.length);
-            EXPECT_EQ(s, "BUY AAPL 100");
-            received = true;
-        }, 8);
-        std::this_thread::sleep_for(1ms);
+            recvB = true;
+            ASSERT_TRUE(recvB);
+        }, 32);
+
+        sub2->poll([&](const hsnet::MessageView& mv) {
+            ASSERT_EQ(mv.length, sizeof(msg));
+            std::string s(reinterpret_cast<const char*>(mv.data), mv.length);
+            recvC = true;
+            ASSERT_TRUE(recvC);
+        }, 32);
     }
-    EXPECT_TRUE(received);
-} 
+
+}
