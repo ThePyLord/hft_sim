@@ -31,7 +31,6 @@ protected:
 TEST_F(LoggingTest, SingleThreadedLogging) {
     Logger& logger = Logger::getInstance();
     logger.enableFile(true);
-    // logger.
     logger.info("Single-threaded test started");
     logger.debug("This is a debug message");
     logger.warning("This is a warning message");
