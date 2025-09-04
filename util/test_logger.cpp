@@ -19,7 +19,7 @@ protected:
         // Clean up the log file after each test
         if (exists("test_logger.log")) {
             std::cout << "Removing test_logger.log" << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(5)); // Wait for 500ms to ensure all logs are written
+            std::this_thread::sleep_for(std::chrono::seconds(5)); // Wait for 5 seconds to ensure all logs are written
             remove("test_logger.log");
             std::cout << "Removed test_logger.log" << std::endl;
         }
