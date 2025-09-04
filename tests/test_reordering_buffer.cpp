@@ -52,8 +52,8 @@ TEST(ReorderingBuffer, OutOfOrderDelivery) {
     
     // Add packets out of order: 1, 3, 2
     EXPECT_TRUE(buffer.add(0, data1));
-    EXPECT_TRUE(buffer.add(2, data3));
-    EXPECT_TRUE(buffer.add(1, data2));
+    EXPECT_TRUE(buffer.add(2, data3, 2));
+    EXPECT_TRUE(buffer.add(1, data2, 3));
     
     EXPECT_EQ(buffer.size(), 3);
     EXPECT_TRUE(buffer.has_ready());
