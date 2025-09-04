@@ -38,7 +38,7 @@ set(SOURCES
     src/OrderBook.cpp
     src/Order.cpp
     util/Logger.cpp
-    src/LockFreeQueue.cpp
+    # src/LockFreeQueue.cpp
     # src/Trade.cpp
     # src/MarketDataFeed.cpp
     # src/ExecutionEngine.cpp
