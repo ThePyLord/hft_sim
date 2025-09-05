@@ -20,7 +20,7 @@
 namespace hsnet {
 
 namespace {
-static constexpr std::string MULTICAST_ADDR{"239.1.1.1"};
+static constexpr std::string_view MULTICAST_ADDR = "239.1.1.1";
 static constexpr int MULTICAST_PORT{8170};
 
 class UdpPublication : public IPublication {
@@ -28,8 +28,6 @@ class UdpPublication : public IPublication {
     explicit UdpPublication(int sockfd, sockaddr_in dest)
         : sockfd_(sockfd), dest_(dest), next_seq_(0) {}
 
-    // Multicast setup
-    UdpPublication(int sockfd) : sockfd_(sockfd), next_seq_{0} {}
 
     PublishResult offer(std::span<const uint8_t> payload, StreamId streamId, bool endOfMessage) noexcept override {
         (void)streamId;
@@ -62,7 +60,7 @@ class UdpPublication : public IPublication {
 
 class FeedPublication : public IPublication {
    public:
-    explicit FeedPublication(const FeedPublisherConfig& cfg) : next_seq_(0) {
+    explicit FeedPublication(const FeedPublisherConfig& cfg) : txSock_({}), next_seq_(0) {
         // Multicast setup
         sockfd_ = socket(AF_INET, SOCK_DGRAM, 0);
         if (sockfd_ >= 0) {
@@ -70,10 +68,8 @@ class FeedPublication : public IPublication {
             // setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
             // setup multicast
             txSock_.sin_family = AF_INET;
-            // txSock_.sin_port = htons(cfg.port);
             txSock_.sin_port = htons(MULTICAST_PORT);
-            // txSock_.sin_addr.s_addr = inet_addr(cfg.multicast_group.c_str());
-            txSock_.sin_addr.s_addr = inet_addr(MULTICAST_ADDR.c_str());
+            txSock_.sin_addr.s_addr = inet_addr(std::string{MULTICAST_ADDR}.c_str());
             setsockopt(sockfd_, IPPROTO_IP, IP_MULTICAST_TTL, &optval, sizeof(optval));
         }
     }
@@ -107,8 +103,8 @@ class FeedPublication : public IPublication {
 
    private:
     int sockfd_;
-    sockaddr_in txSock_{};
-    std::atomic<uint64_t> next_seq_{0};
+    sockaddr_in txSock_;
+    std::atomic<uint64_t> next_seq_;
 };
 
 class FeedSubscription : public ISubscription {
@@ -127,7 +123,7 @@ class FeedSubscription : public ISubscription {
                 throw std::runtime_error("Failed to bind or create subscription socket!");
 
             // Set mx_addr to constant (Might use config value in the future)
-            mreq.imr_multiaddr.s_addr = inet_addr(MULTICAST_ADDR.c_str());
+            mreq.imr_multiaddr.s_addr = inet_addr(std::string{MULTICAST_ADDR}.c_str());
             // Setting to loopback for now, once again ignoring config value
             mreq.imr_interface.s_addr = htonl(INADDR_ANY);
             int did_set_sock = setsockopt(sockfd_, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
@@ -240,7 +236,7 @@ class UdpSubscription : public ISubscription {
             uint8_t buffer[2048];
             sockaddr_in src{};
             socklen_t sl = sizeof(src);
-            ssize_t n = recvfrom(sockfd_, buffer, buffer_size, MSG_DONTWAIT, reinterpret_cast<sockaddr*>(&src), &sl);
+            ssize_t n = recvfrom(sockfd_, buffer, sizeof(buffer), MSG_DONTWAIT, reinterpret_cast<sockaddr*>(&src), &sl);
             if (n <= 0) break;
 
             // Parse protocol header
@@ -326,7 +322,7 @@ class UdpReliableTransport : public ITransport {
                 rxSock_ = -1;  // Mark as invalid
             }
             ip_mreq mreq;
-            mreq.imr_multiaddr.s_addr = inet_addr(MULTICAST_ADDR.c_str());
+            mreq.imr_multiaddr.s_addr = inet_addr(std::string{MULTICAST_ADDR}.c_str());
             mreq.imr_interface.s_addr = htonl(INADDR_ANY);
             //
             setsockopt(rxSock_, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char*)&mreq, sizeof(mreq));
@@ -347,7 +343,7 @@ class UdpReliableTransport : public ITransport {
             tx_addr.sin_family = AF_INET;
             if (cfg_.remote_endpoint == "multicast") {
                 tx_addr.sin_port = htons(MULTICAST_PORT);
-                tx_addr.sin_addr.s_addr = inet_addr(MULTICAST_ADDR.c_str());
+                tx_addr.sin_addr.s_addr = inet_addr(std::string{MULTICAST_ADDR}.c_str());
                 dest_ = tx_addr;
                 setsockopt(txSock_, IPPROTO_IP, IP_MULTICAST_TTL, &optval, sizeof(optval));
             } else {

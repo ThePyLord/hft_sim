@@ -95,13 +95,8 @@ size_t ReorderingBuffer::find_packet(uint64_t sequence) const {
 }
 
 void ReorderingBuffer::advance_head() {
+    // Move head to next valid packet or wrap around (MAINTAIN BUFFER INVARIANT)
     head_ = (head_ + 1) % max_size_;
-    size_t seen_packets = 0;
-    // Skip over any invalid slots to find the next valid packet
-    while (head_ != ((head_ + count_) % max_size_) && !buffer_[head_].valid && seen_packets < max_size_) {
-        head_ = (head_ + 1) % max_size_;
-        seen_packets++;
-    }
 }
 
 } // namespace hsnet 

@@ -52,11 +52,13 @@ TEST(LockFreeQueueTest_Concurrency, ConcurrentPushPop) {
     };
 
     auto consumer = [&q, &pop_count, N]() {
-        // int val;
+
         for (int i = 0; i < N; ++i) {
             auto val = q.pop();
-            while (!val.has_value()) std::this_thread::yield();
-            // while (val) std::this_thread::yield();
+            while (!val.has_value()) {
+              std::this_thread::yield();
+              std::this_thread::sleep_for(std::chrono::microseconds(50));
+            }
             ++pop_count;
         }
     };

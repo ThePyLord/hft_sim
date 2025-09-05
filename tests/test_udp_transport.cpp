@@ -34,7 +34,7 @@ TEST(UdpReliable, BasicMulticast) {
     std::atomic<bool> recvB{false};
     std::atomic<bool> recvC{false};
     auto start = steady_clock::now();
-    while (!recvB && !recvC && steady_clock::now() - start < 10s) {
+    while ((!recvB || !recvC) && steady_clock::now() - start < 10s) {
         sub1->poll([&](const hsnet::MessageView& mv) {
             ASSERT_EQ(mv.length, sizeof(msg));
             std::string s(reinterpret_cast<const char*>(mv.data), mv.length);

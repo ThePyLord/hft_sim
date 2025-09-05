@@ -118,4 +118,97 @@ TEST(ReorderingBuffer, Clear) {
     EXPECT_EQ(buffer.size(), 0);
     EXPECT_EQ(buffer.next_expected(), 0);
     EXPECT_FALSE(buffer.has_ready());
-} 
+}
+
+TEST(ReorderingBuffer, GapsInSequence) {
+    hsnet::ReorderingBuffer buffer(8);
+
+    std::vector<uint8_t> data1 = {1, 2, 3};
+    std::vector<uint8_t> data2 = {4, 5, 6};
+
+    // Add packets with gaps: 0, 3, 6
+    EXPECT_TRUE(buffer.add(0, data1));
+    EXPECT_TRUE(buffer.add(3, data2));
+    EXPECT_TRUE(buffer.add(6, data1));
+
+    // Should only be able to get packet 0
+    auto result = buffer.get_next();
+    EXPECT_TRUE(result.has_value());
+    EXPECT_EQ(result->first, data1);
+
+    // No more packets should be ready
+    EXPECT_FALSE(buffer.has_ready());
+    EXPECT_EQ(buffer.next_expected(), 1);
+}
+
+TEST(ReorderingBuffer, CircularBufferWrapping) {
+    hsnet::ReorderingBuffer buffer(4);
+
+    std::vector<uint8_t> data = {1, 2, 3};
+
+    // Fill buffer and consume to force wrapping
+    for (uint64_t i = 0; i < 10; ++i) {
+        EXPECT_TRUE(buffer.add(i, data));
+        auto result = buffer.get_next();
+        EXPECT_TRUE(result.has_value());
+    }
+
+    // Add out of order packets that will wrap around
+    EXPECT_TRUE(buffer.add(12, data));
+    EXPECT_TRUE(buffer.add(10, data));
+    EXPECT_TRUE(buffer.add(11, data));
+
+    // Should deliver in sequence
+    for (int i = 0; i < 3; ++i) {
+        auto result = buffer.get_next();
+        EXPECT_TRUE(result.has_value());
+    }
+}
+
+TEST(ReorderingBuffer, LargeGapThenFill) {
+    hsnet::ReorderingBuffer buffer(8);
+
+    std::vector<uint8_t> data = {1, 2, 3};
+
+    // Add packet at sequence 0
+    EXPECT_TRUE(buffer.add(0, data));
+    auto result = buffer.get_next();
+    EXPECT_TRUE(result.has_value());
+
+    // Add packet far ahead
+    EXPECT_TRUE(buffer.add(7, data));
+    EXPECT_FALSE(buffer.has_ready());
+
+    // Fill in the gap
+    for (uint64_t i = 1; i < 7; ++i) {
+        EXPECT_TRUE(buffer.add(i, data));
+    }
+
+    // Should now be able to consume all
+    for (int i = 0; i < 7; ++i) {
+        EXPECT_TRUE(buffer.has_ready());
+        result = buffer.get_next();
+        EXPECT_TRUE(result.has_value());
+    }
+}
+
+TEST(ReorderingBuffer, BufferFullWithGaps) {
+    hsnet::ReorderingBuffer buffer(4);
+
+    std::vector<uint8_t> data = {1, 2, 3};
+
+    // Fill buffer with non-consecutive packets
+    EXPECT_TRUE(buffer.add(0, data));
+    EXPECT_TRUE(buffer.add(2, data));
+    EXPECT_FALSE(buffer.add(4, data));
+    EXPECT_FALSE(buffer.add(6, data));
+
+    // Should only be able to get first packet
+    auto result = buffer.get_next();
+    EXPECT_TRUE(result.has_value());
+    EXPECT_FALSE(buffer.has_ready()); // Gap at sequence 1
+
+    // Adding sequence 1 should not cause issues
+    EXPECT_TRUE(buffer.add(1, data));
+    EXPECT_TRUE(buffer.has_ready());
+}

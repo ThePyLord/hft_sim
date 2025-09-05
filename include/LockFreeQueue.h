@@ -30,10 +30,6 @@ class LockFreeQueue {
     }
 
     ~LockFreeQueue() {
-        // while (pop()) {
-        //     Node* dummy = head.load(std::memory_order_relaxed);
-        //     delete dummy;
-        // }
         while (auto old_head = head.load(std::memory_order_acquire)) {
            head.store(old_head->next);
            delete old_head;
@@ -63,9 +59,8 @@ class LockFreeQueue {
         }
         // Now we have successfully linked the new node
         tail.compare_exchange_weak(curr, new_node);
-        // Update the tail pointer to point to the new node
-        tail.store(new_node, std::memory_order_release);
-        // std::cout << "Pushed: " << val << std::endl;
+
+
     }
 
     bool pop(T& item) {
@@ -93,12 +88,9 @@ class LockFreeQueue {
             if (head.compare_exchange_weak(curr, next,
                 std::memory_order_acq_rel,
                 std::memory_order_acquire)) {
-                std::optional<T>result(std::move(next->data));
+                std::optional<T> result(std::move(next->data));
                 delete curr;
-                // if (next == nullptr) {
-                //     tail.store(new Node(DummyTag{}), std::memory_order_release);
-                // }
-                // break;
+
                 return result;
             }
         }
