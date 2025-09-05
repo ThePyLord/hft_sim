@@ -27,7 +27,7 @@ void OrderBook::executeTrade(Order& bid, Order& ask, uint32_t fill_qty) {
 }
 
 void OrderBook::match_market_order(Order& order) {
-    // auto& opposite_book = (order.getSide() == BUY ? asks : bids);
+    
     if (order.getSide() == BUY) {
         bool asksEmpty = asks.empty() ? true : false;
         if(asksEmpty)
@@ -55,11 +55,11 @@ void OrderBook::match_market_order(Order& order) {
             }
         }
     } else {
-        bool emptyBids = bids.empty() ? true : false;
+        // bool emptyBids = bids.empty() ? true : false;
         
         if (bids.empty())
             return;
-        auto bidIter = bids.begin();
+        auto bidIter = bids.rbegin();
         while (order.getSize() > 0 && !bidIter->second.empty()) {
             // Loop through orders at given price orders using this iterator
             auto& bidsAtPrice = bidIter->second;
@@ -76,7 +76,9 @@ void OrderBook::match_market_order(Order& order) {
 
             if(bidsAtPrice.empty()) {
                 // Removes the iterator for the bids at this given price
-                bids.erase(bidIter);
+                // Use the base() method to convert reverse_iterator to regular iterator
+                // This allows us to safely erase the element
+                bids.erase(std::next(bidIter).base());
             }
         }
     }
@@ -89,18 +91,20 @@ void OrderBook::match_market_order(Order& order) {
  */
 void OrderBook::add_order(Order& order) {
     if (order.getType() == MARKET) {
-        _order_locations[order.getId()] = --bids[order.getPrice().value()].end();
+        // Handle market orders immediately
         match_market_order(order);
         return;
     }
-
+    // assert that order has a price (limit orders need a value)
     if (order.getSide() == BUY) {
-        bids[order.getPrice().value()].push_back(order);
         // Store the location of the order in the bids map
+        bids[order.getPrice().value()].push_back(order);
+        // bidsDeque[order.getPrice().value()].push_back(order);
         _order_locations[order.getId()] = std::prev(bids[order.getPrice().value()].end());
             
     } else if (order.getSide() == SELL) {
         asks[order.getPrice().value()].push_back(order);
+        // asksDeque[order.getPrice().value()].push_back(order);
         _order_locations[order.getId()] = std::prev(asks[order.getPrice().value()].end());
     }
 }

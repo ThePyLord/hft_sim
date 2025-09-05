@@ -53,10 +53,9 @@ private:
     std::ofstream file_stream_;
     std::mutex mutex_;
     size_t num_logged;
-    std::array<std::string, 100> buffer;
     std::string log_file_ = "hft_sim.log";
     bool console_enabled_ = true;
-    bool file_enabled_ = true;
+    bool file_enabled_;
     LogLevel min_level_ = LogLevel::DEBUG;
 };
 
