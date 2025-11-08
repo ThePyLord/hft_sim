@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <iostream>
+#include <format>
 #include "LockFreeQueue.h"
 
 // Suite: LockFreeQueueTest_Basic
@@ -16,8 +17,7 @@ TEST(LockFreeQueueTest_Basic, PushPopSingle) {
     int result = 42;
     // This will fail (TDD) until pop is implemented.
     auto out = q.pop();
-    EXPECT_TRUE(out);
-    EXPECT_EQ(result, value);
+    ASSERT_EQ(out.value(), value);
 }
 
 TEST(LockFreeQueueTest_Basic, PushMultiplePopOrder) {
@@ -36,7 +36,7 @@ TEST(LockFreeQueueTest_Basic, PushMultiplePopOrder) {
 TEST(LockFreeQueueTest_Empty, PopEmptyReturnsFalse) {
     LockFreeQueue<int> q;
     auto result = q.pop();
-    EXPECT_FALSE(result.has_value());
+    ASSERT_FALSE(result.has_value());
 }
 
 // Suite: LockFreeQueueTest_Concurrency
@@ -52,7 +52,6 @@ TEST(LockFreeQueueTest_Concurrency, ConcurrentPushPop) {
     };
 
     auto consumer = [&q, &pop_count, N]() {
-
         for (int i = 0; i < N; ++i) {
             auto val = q.pop();
             while (!val.has_value()) {
@@ -60,14 +59,17 @@ TEST(LockFreeQueueTest_Concurrency, ConcurrentPushPop) {
               std::this_thread::sleep_for(std::chrono::microseconds(50));
             }
             ++pop_count;
+            EXPECT_EQ(val.value(), i);
+            std::cout << "Popped value: " << val.value() << std::endl;
         }
     };
 
-     std::thread t1(producer), t2(consumer);
-     t1.join();
-     t2.join();
+    // Spin up a single producer and consumer thread 
+    std::thread t1(producer), t2(consumer);
+    t1.join();
+    t2.join();
 
-    EXPECT_EQ(pop_count, N);
+    ASSERT_EQ(pop_count, N);
 }
 
 // Benchmark: Single-threaded push and pop
@@ -76,7 +78,7 @@ TEST(LockFreeQueueBenchmark, SingleThreaded) {
     const int N = 1000000;
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < N; ++i) q.push_back(i);
-    // int val;
+
     for (int i = 0; i < N; ++i) q.pop();
     auto end = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(end - start).count();
@@ -84,24 +86,40 @@ TEST(LockFreeQueueBenchmark, SingleThreaded) {
               << (N * 2 / ms * 1000) << " ops/sec" << std::endl;
 }
 
-// Benchmark: Producer-consumer (2 threads)
+// Benchmark: Producer-consumer with multiple producers
 TEST(LockFreeQueueBenchmark, ProducerConsumer) {
+    std::locale::global(std::locale("en_US.UTF-8"));
     LockFreeQueue<int> q;
-    const int N = 1000000;
+    const int N = 100'000'000;
+    std::atomic<bool> producers_done{false};
     auto start = std::chrono::high_resolution_clock::now();
-    std::thread producer([&q, N]() {
-        for (int i = 0; i < N; ++i) q.push_back(i);
-    });
-    std::thread consumer([&q, N]() {
+    std::vector<std::thread> producers;
+    producers.reserve(20);
+    std::cout << "Starting " << producers.capacity() << " producer threads..." << std::endl;
+    producers.emplace_back(
+        [](LockFreeQueue<int> &q, int N) {
+          for (int i = 0; i < N; ++i)
+            q.push_back(i);
+        },
+        std::ref(q), N);
+
+    for (auto& producer : producers) {
+        if (producer.joinable()) {
+            producer.join();
+        }
+    }
+
+    producers_done.store(true, std::memory_order_release);
+
+    std::thread consumer([&]() {
         for (int i = 0; i < N; ++i) {
             auto val = q.pop();
             while (!val) std::this_thread::yield();
         }
     });
-    producer.join();
     consumer.join();
     auto end = std::chrono::high_resolution_clock::now();
     double ms = std::chrono::duration<double, std::milli>(end - start).count();
-    std::cout << "[ProducerConsumer] " << N << " push+pop in " << ms << " ms, "
+    std::cout << "[ProducerConsumer] " << std::format("{:L}", N) << " push+pop in " << ms << " ms, "
               << (N * 2 / ms * 1000) << " ops/sec" << std::endl;
 }
