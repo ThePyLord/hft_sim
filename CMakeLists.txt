@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 
 # Set the C++ standard
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexperimental-library")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fexperimental-library")
 
 project(hft_sim)
 
@@ -21,6 +22,7 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(googletest)
+include(GoogleTest)
 
 # Net library
 set(NET_SOURCES
@@ -89,14 +91,15 @@ set(TEST_SOURCES
         tests/test_udp_transport.cpp
 )
 
-# Function to add a Google Test executable (commented out for now)
+# Function to add a Google Test executable 
 function(add_gtest_test TEST_NAME TEST_SOURCE)
     add_executable(${TEST_NAME} ${TEST_SOURCE} src/OrderBook.cpp src/Order.cpp util/Logger.cpp)
-     set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEST_OUTPUT_DIR})
+    set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TEST_OUTPUT_DIR})
     target_include_directories(${TEST_NAME} PRIVATE
-            ${CMAKE_SOURCE_DIR}/include
-            ${CMAKE_SOURCE_DIR}/util)
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/util)
     target_link_libraries(${TEST_NAME} PRIVATE gtest gtest_main hsnet)
+    gtest_discover_tests(${TEST_NAME} PRIVATE)
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_OUTPUT_DIR}/${TEST_NAME})
     message("Writing test executable: ${TEST_NAME} with source: ${TEST_SOURCE} to ${TEST_OUTPUT_DIR}")
 endfunction()
@@ -105,6 +108,7 @@ add_gtest_test(test_full_orders tests/test_full_orders.cpp)
 add_gtest_test(test_cancel_order tests/test_cancel_order.cpp)
 add_gtest_test(test_crc32c tests/test_crc32c.cpp)
 add_gtest_test(test_reordering_buffer tests/test_reordering_buffer.cpp)
+add_gtest_test(test_lockfree_queue tests/test_lockfree_queue.cpp)
 
 
 #foreach(TEST_SRC ${TEST_SOURCES})

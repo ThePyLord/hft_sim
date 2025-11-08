@@ -1,5 +1,7 @@
+# Dotfiles and system files
 .idea/
 .vscode/
+.cache/
 .DS_Store
 
 build/
