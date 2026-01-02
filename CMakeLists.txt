@@ -89,6 +89,7 @@ set(TEST_SOURCES
         tests/test_crc32c.cpp
         tests/test_reordering_buffer.cpp
         tests/test_udp_transport.cpp
+        tests/test_memory_pool.cpp
 )
 
 # Function to add a Google Test executable 
@@ -109,6 +110,7 @@ add_gtest_test(test_cancel_order tests/test_cancel_order.cpp)
 add_gtest_test(test_crc32c tests/test_crc32c.cpp)
 add_gtest_test(test_reordering_buffer tests/test_reordering_buffer.cpp)
 add_gtest_test(test_lockfree_queue tests/test_lockfree_queue.cpp)
+add_gtest_test(test_memory_pool tests/test_memory_pool.cpp)
 
 
 #foreach(TEST_SRC ${TEST_SOURCES})
