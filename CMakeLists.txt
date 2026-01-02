@@ -34,6 +34,15 @@ set(NET_SOURCES
 add_library(hsnet STATIC ${NET_SOURCES})
 target_include_directories(hsnet PUBLIC ${CMAKE_SOURCE_DIR}/include/net)
 
+# Enable ARM CRC intrinsics on Apple Silicon (M1/M2) for hsnet only
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)")
+    message(STATUS "Enabling ARM CRC intrinsics for hsnet on Apple Silicon")
+    # Request an ARM architecture that supports CRC instructions
+    target_compile_options(hsnet PRIVATE -march=armv8-a+crc)
+    target_compile_definitions(hsnet PRIVATE __ARM_FEATURE_CRC32=1)
+endif()
+
+
 # Add the source files for the main executable
 set(SOURCES
     main.cpp
