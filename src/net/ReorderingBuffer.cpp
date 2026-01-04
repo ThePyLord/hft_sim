@@ -9,7 +9,7 @@ ReorderingBuffer::ReorderingBuffer(size_t max_size)
     buffer_.resize(max_size);
 }
 
-bool ReorderingBuffer::add(uint64_t sequence, std::vector<uint8_t> data, uint32_t stream_id) {
+bool ReorderingBuffer::add(uint64_t sequence, std::vector<uint8_t> data) {
     // If sequence is too old, ignore it
     if (sequence < next_seq_) {
         return false;
@@ -34,12 +34,13 @@ bool ReorderingBuffer::add(uint64_t sequence, std::vector<uint8_t> data, uint32_
     if (!buffer_[pos].valid) {
         count_++;
     }
-    buffer_[pos] = Packet(sequence, std::move(data), stream_id);
+    buffer_[pos] = Packet(sequence, std::move(data));
 
     return true;
 }
 
-std::optional<std::pair<std::vector<uint8_t>, uint32_t>> ReorderingBuffer::get_next() {
+std::optional<data_t> ReorderingBuffer::get_next() {
+// std::optional<std::pair<std::vector<uint8_t>, uint32_t>> ReorderingBuffer::get_next() {
     if (!has_ready()) {
         return std::nullopt;
     }
@@ -51,19 +52,19 @@ std::optional<std::pair<std::vector<uint8_t>, uint32_t>> ReorderingBuffer::get_n
     
     // Extract data and stream_id
     auto data = std::move(packet.data);
-    auto stream_id = packet.stream_id;
+    // auto stream_id = packet.stream_id;
     
     // Mark slot as invalid
     packet.valid = false;
     packet.sequence = 0;
-    packet.stream_id = 0;
+    // packet.stream_id = 0;
     
     // Advance sequence number and head pointer
     next_seq_++;
     advance_head();
     count_--;
     
-    return std::make_pair(std::move(data), stream_id);
+    return std::move(data);
 }
 
 bool ReorderingBuffer::has_ready() const {
