@@ -14,33 +14,34 @@ TEST(ReorderingBuffer, BasicOperations) {
 
 TEST(ReorderingBuffer, InSequenceDelivery) {
     hsnet::ReorderingBuffer buffer(4);
-    
+
     // Add packets in sequence
-    std::vector<uint8_t> data1 = {1, 2, 3};
-    std::vector<uint8_t> data2 = {4, 5, 6};
     
-    EXPECT_TRUE(buffer.add(0, data1, 0));
-    EXPECT_TRUE(buffer.add(1, data2, 1));
+    hsnet::data_t data1 = {1, 2, 3};
+    hsnet::data_t data2 = {4, 5, 6};
+    std::cout << "Running in sequence delivery test" << std::endl;
+    ASSERT_TRUE(buffer.add(0, data1));
+    ASSERT_TRUE(buffer.add(1, data2));
     
-    EXPECT_EQ(buffer.size(), 2);
-    EXPECT_TRUE(buffer.has_ready());
+    ASSERT_EQ(buffer.size(), 2);
+    ASSERT_TRUE(buffer.has_ready());
     
     // Get first packet
     auto result1 = buffer.get_next();
-    EXPECT_TRUE(result1.has_value());
+    ASSERT_TRUE(result1.has_value());
     auto d1 = *result1;
-    EXPECT_EQ(d1.first, data1);
-    EXPECT_EQ(buffer.next_expected(), 1);
+    ASSERT_EQ(d1, data1);
+    ASSERT_EQ(buffer.next_expected(), 1);
     // Get second packet
     auto result2 = buffer.get_next();
 
-    EXPECT_TRUE(result2.has_value());
+    ASSERT_TRUE(result2.has_value());
     d1 = *result2;
-    EXPECT_EQ(d1.first, data2);
-    EXPECT_EQ(buffer.next_expected(), 2);
+    ASSERT_EQ(d1, data2);
+    ASSERT_EQ(buffer.next_expected(), 2);
     
-    EXPECT_EQ(buffer.size(), 0);
-    EXPECT_FALSE(buffer.has_ready());
+    ASSERT_EQ(buffer.size(), 0);
+    ASSERT_FALSE(buffer.has_ready());
 }
 
 TEST(ReorderingBuffer, OutOfOrderDelivery) {
@@ -52,8 +53,8 @@ TEST(ReorderingBuffer, OutOfOrderDelivery) {
     
     // Add packets out of order: 1, 3, 2
     EXPECT_TRUE(buffer.add(0, data1));
-    EXPECT_TRUE(buffer.add(2, data3, 2));
-    EXPECT_TRUE(buffer.add(1, data2, 3));
+    EXPECT_TRUE(buffer.add(2, data3));
+    EXPECT_TRUE(buffer.add(1, data2));
     
     EXPECT_EQ(buffer.size(), 3);
     EXPECT_TRUE(buffer.has_ready());
@@ -62,17 +63,17 @@ TEST(ReorderingBuffer, OutOfOrderDelivery) {
     auto result1 = buffer.get_next();
     EXPECT_TRUE(result1.has_value());
     auto p = *result1;
-    EXPECT_EQ(p.first, data1);
+    EXPECT_EQ(p, data1);
     
     auto result2 = buffer.get_next();
     EXPECT_TRUE(result2.has_value());
     p = *result2;
-    EXPECT_EQ(p.first, data2);
+    EXPECT_EQ(p, data2);
     
     auto result3 = buffer.get_next();
     EXPECT_TRUE(result3.has_value());
     p = *result3;
-    EXPECT_EQ(p.first, data3);
+    EXPECT_EQ(p, data3);
     
     EXPECT_EQ(buffer.size(), 0);
     EXPECT_FALSE(buffer.has_ready());
@@ -134,7 +135,7 @@ TEST(ReorderingBuffer, GapsInSequence) {
     // Should only be able to get packet 0
     auto result = buffer.get_next();
     EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(result->first, data1);
+    EXPECT_EQ(result, data1);
 
     // No more packets should be ready
     EXPECT_FALSE(buffer.has_ready());

@@ -1,7 +1,12 @@
 #include "net/Crc32c.h"
 
 #include <cstddef>
+#include <zlib.h>
 #include <cstdint>
+#include <iostream>
+#ifdef __ARM_FEATURE_CRC32
+#	include <arm_acle.h>
+#endif
 
 namespace hsnet {
 
@@ -78,21 +83,28 @@ static constexpr uint32_t CRC32C_TABLE[256] = {
 
 // Software CRC32C implementation using lookup table
 uint32_t crc32c_sw(const uint8_t* data, size_t len) noexcept {
-    uint32_t crc = 0xFFFFFFFF;
+    uint32_t crc = 0xFFFFFFFFu;
     for (size_t i = 0; i < len; ++i) {
         crc = (crc >> 8) ^ CRC32C_TABLE[(crc ^ data[i]) & 0xFF];
     }
-    return crc ^ 0xFFFFFFFF;
+    return crc ^ 0xFFFFFFFFu;
 }
 
-// Hardware CRC32C implementation (stub for now)
+// Hardware CRC32C implementation via the Castagnoli polynomial
 uint32_t crc32c_hw(const uint8_t* data, size_t len) noexcept {
-    // TODO: Implement with SSE4.2 (Intel) or ARMv8 CRC instructions
-    // For now, fall back to software implementation
-    return crc32c_sw(data, len);
+  	#ifdef __ARM_FEATURE_CRC32
+		uint32_t crc = 0xFFFFFFFFu;
+		for (size_t i = 0; i < len; ++i) {
+			crc = __crc32cb(crc, data[i]);
+		}
+    	return crc ^ 0xFFFFFFFFu;
+	#else
+		// Fallback to software if unavailable
+		return crc32c_sw(data, len);
+	#endif
 }
 
-// Main CRC32C function - currently always uses software
+// Main CRC32C function (Incomplete)
 uint32_t crc32c(const uint8_t* data, size_t len) noexcept {
     // TODO: Add runtime CPU feature detection and use hardware when available
     return crc32c_sw(data, len);

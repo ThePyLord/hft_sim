@@ -23,8 +23,8 @@ Logger::~Logger() {
 }
 
 void Logger::setLogFile(const std::string& filename) {
-    std::lock_guard<std::mutex> lock(mutex_);
     log_file_ = filename;
+    std::cout << "Log file set to: " << log_file_ << std::endl;
     if (file_stream_.is_open()) {
         file_stream_.close();
     }
@@ -34,12 +34,10 @@ void Logger::setLogFile(const std::string& filename) {
 }
 
 void Logger::enableConsole(bool enable) {
-    std::lock_guard<std::mutex> lock(mutex_);
     console_enabled_ = enable;
 }
 
 void Logger::enableFile(bool enable) {
-    std::lock_guard<std::mutex> lock(mutex_);
     file_enabled_ = enable;
     if (file_enabled_ && !file_stream_.is_open()) {
         file_stream_.open(log_file_, std::ios::app);
@@ -49,7 +47,6 @@ void Logger::enableFile(bool enable) {
 }
 
 void Logger::setLogLevel(LogLevel level) {
-    std::lock_guard<std::mutex> lock(mutex_);
     min_level_ = level;
 }
 
@@ -72,7 +69,6 @@ void Logger::error(const std::string& msg) {
 }
 
 void Logger::logImpl(LogLevel level, const std::string& msg) {
-    std::lock_guard<std::mutex> lock(mutex_);
     // Timestamp
     auto now = std::chrono::system_clock::now();
     auto in_time_t = std::chrono::system_clock::to_time_t(now);
@@ -80,9 +76,6 @@ void Logger::logImpl(LogLevel level, const std::string& msg) {
     ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %H:%M:%S");
     // Log format: [LEVEL][timestamp] message
     std::string log_line = "[" + levelToString(level) + "][" + ss.str() + "] " + msg + "\n";
-    
-    // buffer[num_logged] = log_line;
-    // num_logged = (num_logged + 1) % buffer.size();
     if (console_enabled_) {
         std::cout << log_line;
     }

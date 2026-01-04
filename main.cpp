@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <random>
 #include <ranges>
 #include <thread>
 
@@ -12,115 +13,110 @@
 #include "util/Logger.h"
 
 extern int matches;
-
+std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
 template <typename T>
 T randval(T min, T max) {
-    if constexpr (std::is_integral<T>::value) {
-        return ((T)rand() % (max - min + 1)) + min;
-    } else if constexpr (std::is_floating_point<T>::value) {
-        return min + static_cast<T>(rand()) / (static_cast<T>(RAND_MAX) / (max - min));
-    }
+	if constexpr (std::is_integral<T>::value) {
+		return ((T)rand() % (max - min + 1)) + min;
+	} else if constexpr (std::is_floating_point<T>::value) {
+		return min + static_cast<T>(rand()) / (static_cast<T>(RAND_MAX) / (max - min));
+	}
 }
 
 Side randomSide() {
-    return randval<int>(0, 1) == 0 ? BUY : SELL;
+	return randval<int>(0, 1) == 0 ? BUY : SELL;
 }
 
 void signal_handler(int signum) {
-    if (signum == SIGINT) {
-        // Handle the Ctrl+C interrupt
-        // For example, clean up resources, save data, and exit gracefully
-        // Logger::getInstance().info("Ctrl+C detected! Exiting gracefully...");
-        // Logger::getInstance().info("Found " + std::to_string(matches) + " matches.");
-        std::cout << "Ctrl+C detected! Exiting gracefully..." << std::endl;
-        std::cout << "Found " << matches << " matches." << std::endl;
-        exit(signum);  // Terminate the program with the signal code
-    }
+	if (signum == SIGINT) {
+		// Handle the Ctrl+C interrupt
+		// For example, clean up resources, save data, and exit gracefully
+		// Logger::getInstance().info("Ctrl+C detected! Exiting gracefully...");
+		// Logger::getInstance().info("Found " + std::to_string(matches) + " matches.");
+		std::cout << "Ctrl+C detected! Exiting gracefully..." << std::endl;
+		std::cout << "Found " << matches << " matches." << std::endl;
+		std::chrono::steady_clock::time_point end_time = std::chrono::steady_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
+		std::cout << "Total runtime: " << duration << " seconds." << std::endl;
+		exit(signum);  // Terminate the program with the signal code
+	}
 }
 
 void addMarketOrders(OrderBook& ob, size_t num_orders) {
-    for (size_t i = 0; i < num_orders; i++) {
-        Order order(Order::createMarketOrder(
-            randomSide(),
-            randval<uint32_t>(100, 110)));
-        ob.add_order(order);
-    }
+	for (size_t i = 0; i < num_orders; i++) {
+		Order order(Order::createMarketOrder(
+			randomSide(),
+			randval<uint32_t>(100, 110)));
+		ob.add_order(order);
+	}
 }
 
 int main(int argc, char const* argv[]) {
-    Logger& logger = Logger::getInstance();
-    logger.setLogFile("hft_sim.log");
-    logger.setLogLevel(LogLevel::INFO);
-    logger.enableConsole(false);
-    logger.enableFile(true);
-    logger.info("Simulation started");
-    // Seed the random number generator
+	Logger& logger = Logger::getInstance();
+	logger.setLogFile("rnd.log");
+	logger.setLogLevel(LogLevel::INFO);
+	logger.enableConsole(false);
+	logger.enableFile(true);
+	logger.info("Simulation started");
+	// Seed the random number generator
+
     srand(time(nullptr));
-    OrderBook lob;  // Create limit order book
-    LockFreeQueue<Order> order_queue;
-    // Create a dedicated thread to manage logging
-    // std::thread logger_thread(&Logger::run, &logger);
-    // logger_thread.detach();  // Detach the thread to run independently
+	std::random_device rd;
+    std::mt19937 gen(rd());
 
-    // View orders (Expectation is they should be sorted, per std::map implementation)
-    auto bids = lob.getBids();
-    auto asks = lob.getAsks();
+	std::uniform_int_distribution<> dis(0, 1);
+    
+	OrderBook lob;  // Create limit order book
+	LockFreeQueue<Order> order_queue;
 
-    signal(SIGINT, signal_handler);
-    // Simulate the market
-    const size_t orders_per_producer = 10;
-    const size_t num_producers = 2;
-    const size_t num_consumers = 2;
+	signal(SIGINT, signal_handler);
+	// Simulate the market
+	const size_t orders_per_producer = 100;
+	const size_t num_producers = 4;
 
-    std::vector<std::thread> producers;
-    std::vector<std::thread> consumers;
-    producers.reserve(num_producers);
-    consumers.reserve(num_consumers);
+	std::vector<std::thread> producers;
+	std::atomic<bool> done{false};
+	producers.reserve(num_producers);
 
-    for (size_t i = 0; i < num_producers; ++i) {
-        producers.emplace_back(
-            [](LockFreeQueue<Order>& p_queue, uint32_t num_orders) {
-                for (size_t j = 0; j < num_orders; ++j) {
-                    Order order(
-                        randomSide(),                  // Side (BUY/SELL)
-                        (Type)(randval<int>(0, 1)),    // Market/Limit orders
-                        randval<float>(50, 54),        // Price [50, 54]
-                        randval<uint32_t>(100, 110));  // Order size
-                    p_queue.push_back(order);
-                }
-            },
-            std::ref(order_queue),
-            orders_per_producer);
-    }
+	for (size_t i = 0; i < num_producers; ++i) {
+		producers.emplace_back(
+			[](LockFreeQueue<Order>& p_queue, uint32_t num_orders) {
+				for (size_t j = 0; j < num_orders; ++j) {
+					Order order(
+						randomSide(),                  // Side (BUY/SELL)
+						(Type)(randval<int>(0, 1)),    // Market/Limit orders
+						randval<float>(50, 54),        // Price [50, 54]
+						randval<uint32_t>(100, 110));  // Order size
+					p_queue.push_back(order);
+				}
+			},
+			std::ref(order_queue),
+			orders_per_producer);
+	}
 
-    for (size_t i = 0; i < num_consumers; ++i) {
-        consumers.emplace_back(
-            [](LockFreeQueue<Order>& o_queue, OrderBook& lob) {
-                while (true) {
-                    std::optional<Order> order = o_queue.pop();
-                    if (order.has_value()) {
-                        lob.add_order(*order);
-                    } else {
-                        std::this_thread::yield();  // Yield if no orders are available
-                    }
-                }
-            },
-            std::ref(order_queue),
-            std::ref(lob));
-    }
 
-    // while (1) {
-    //     Order order(
-    //         randomSide(),                  // Side (BUY/SELL)
-    //         (Type)(randval<int>(0, 1)),    // Market/Limit orders
-    //         randval<float>(50, 54),        // Price [50, 54]
-    //         randval<uint32_t>(100, 110));  // Order size
-    //     lob.add_order(order);
-    //     if (lob.getBids().size() > 2 and lob.getAsks().size() > 2) {
-    //         // puts("Matching orders...");
-    //         lob.match_orders();
-    //     }
-    // }
+	for (auto& producer : producers) {
+		if (producer.joinable()) {
+			producer.join();
+		}
+	}
 
-    return 0;
+	done.store(true, std::memory_order_release);
+
+    std::thread consumer_thread([&]() {
+	  while (true) {
+            std::optional<Order> order = order_queue.pop();
+            if (order.has_value()) {
+              lob.add_order(*order);
+            } else {
+              if (done.load(std::memory_order_acquire)) {
+                break;
+              }
+              std::this_thread::yield();
+            }
+	  }
+        });
+    consumer_thread.join();
+    
+	return 0;
 }
